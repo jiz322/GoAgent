@@ -1,4 +1,5 @@
 from __future__ import print_function
+import time
 import sys
 import copy
 sys.path.append('..')
@@ -93,6 +94,7 @@ class Game(Game):
         return (copy.deepcopy(board), -player) #^
 
     def getValidMoves(self, board, player):
+        start = time.time()
         #print('here')
         #print('turn for '+ str(player))
         #initialize a valids list contains all actions
@@ -142,6 +144,9 @@ class Game(Game):
             valids[self.n*x+y]=1
         #print(np.array(valids))
         #print('here, hopefully')
+        end = time.time()
+        print("getValidMove: ")
+        print(end - start)
         return np.array(valids)
 
     def getGameEnded(self, board, player):

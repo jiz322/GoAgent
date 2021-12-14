@@ -21,9 +21,9 @@ args = dotdict({
     'instinctArena': False,      # if set true reset Arena's MTCL tree each time
     'balancedGame': True,      # if balanced, black should win over 6 scores
     'resignThreshold': -0.9, # No Use. Resign Only in self-play Training
-    'maxLevel': 7,
+    'maxLevel': 9,
     'levelBased': True,
-    'maxLeaves': 4,
+    'maxLeaves': 9,
 })
 args2 = dotdict({
     'size': 9,                  #board size
@@ -34,9 +34,9 @@ args2 = dotdict({
     'instinctArena': False,      # if set true reset Arena's MTCL tree each time
     'balancedGame': True,      # if balanced, black should win over 6 scores
     'resignThreshold': -0.9, # No Use. Resign Only in self-play Training
-    'maxLevel': 7,
+    'maxLevel': 6,
     'levelBased': True,
-    'maxLeaves': 10,
+    'maxLeaves': 5,
 })
 human_vs_cpu = True
 

@@ -23,7 +23,7 @@ class MCTS():
         self.Ps = {}  # stores initial policy (returned by neural net)
 
         self.Es = {}  # stores game.getGameEnded ended for board s
-        self.Vs = {}  # stores game.getValidMoves for board s
+        #self.Vs = {}  # stores game.getValidMoves for board s
 
         self.capFlag = False #True if reaches simulation cap
 
@@ -37,7 +37,8 @@ class MCTS():
         Returns:
             probs: a policy vector where the probability of the ith action is
                    proportional to Nsa[(s,a)]**(1./temp)
-        """     
+        """
+        
         ##Reset the Tree here for a fair arena game (do not enable it when training)
         if instinctPlay:
             self.__init__(self.game, self.nnet, self.args) #to make the Arena work as expected instead of a large single tree.
@@ -80,14 +81,15 @@ class MCTS():
         if arena == 1: # in arena, IT HAS TO BE FAIR!! NO CHEATING!!
             i = 0
             start_loop = time.time()
-            while(True):             
+            while(True):
+                
                 i += 1
                 if i == 10000: #cap at 8000 total
                     break
                 start = time.time()
                 self.search(canonicalBoard, canonicalBoard.turns, noise=False, sim=self.args.numMCTSSims, levelBased=self.args.levelBased, maxLevel=self.args.maxLevel, maxLeaves=self.args.maxLeaves)
                 end = time.time()
-                print("Totaltime of performing one search")
+                print("Totaltime")
                 print(end - start)
                 if self.capFlag:
                     self.capFlag = False
@@ -169,7 +171,7 @@ class MCTS():
         Returns:
             v: the negative of the value of the current canonicalBoard
         """
-
+        start_bf_rc = time.time()
         s = self.game.stringRepresentation(canonicalBoard)+ str(turns+level).encode()
         #print('mcts')
         #print(canonicalBoard)
@@ -207,8 +209,8 @@ class MCTS():
 
             #print('nn')
             #print(canonicalBoard)
-            valids = self.game.getValidMoves(canonicalBoard, 1)
-            valid_length = len(self.Ps[s]) - np.count_nonzero(self.Ps[s]==0)
+            #valids = self.game.getValidMoves(canonicalBoard, 1)
+            #valid_length = len(self.Ps[s]) - np.count_nonzero(self.Ps[s]==0)
             if noise: # add dirichlet noise to the root policy
                 #print("here")
                 #print(self.Ps[s])
@@ -216,20 +218,24 @@ class MCTS():
                 self.Ps[s] = 0.75*self.Ps[s] + 0.25*np.random.dirichlet([0.03*canonicalBoard.board_size**2/valid_length]*len(self.Ps[s]))
                 #print(newPs)
                 #print(0.25*np.random.dirichlet([0.03*canonicalBoard.board_size**2/valid_length]*len(self.Ps[s])))
-            self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
+            #self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
             
             ######################## START SELECTLOOP ####################
+
+            #select topN moves
             start = time.time()
             if maxLevel < 100:
                 topN = []
                 for i in self.Ps[s]:
-                    topN.sort()
-                    if len(topN) == maxLeaves:
-                        if i > topN[0]:
-                            topN[0] = i
-                    else:
-                        topN.append(i)
-            
+                    topN.append(i)
+                    # topN.sort()
+                    # if len(topN) == maxLeaves:
+                    #     if i > topN[0]:
+                    #         topN[0] = i
+                    # else:
+                    #     topN.append(i)
+                topN.sort()
+                topN = topN[-maxLeaves:]
                 for i in range(0, len(self.Ps[s])):
                     if self.Ps[s][i] not in topN:
                         self.Ps[s][i] = 0
@@ -251,15 +257,15 @@ class MCTS():
                 # NB! All valid moves may be masked if either your NNet architecture is insufficient or you've get overfitting or something else.
                 # If you have got dozens or hundreds of these messages you should pay attention to your NNet and/or training process.   
                 log.error("All valid moves were masked, doing a workaround.")
-                self.Ps[s] = self.Ps[s] + valids
+               #self.Ps[s] = self.Ps[s] + valids
                 self.Ps[s] /= np.sum(self.Ps[s])
 
-            self.Vs[s] = valids
+            #self.Vs[s] = valids
             self.Ns[s] = 0
             #print(canonicalBoard)
             return -v
 
-        valids = self.Vs[s]
+        #valids = self.Vs[s]
         cur_best = -float('inf')
         best_act = -1
         ######################## START ACTIONLOOP ####################
@@ -267,7 +273,7 @@ class MCTS():
         # pick the action with the highest upper confidence bound
         for a in range(self.game.getActionSize()):
             #print('for a in range(self.game.getActionSize()):')
-            if valids[a]:
+            if self.Ps[s][a] != 0:
                 #print((a,valids[a]))
                 if (s, a) in self.Qsa:
                     u = self.Qsa[(s, a)] + self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s] - self.Nsa[(s, a)] + 1) / (
@@ -331,6 +337,10 @@ class MCTS():
         if (s, a) in self.Nsa.keys():
             nsa = self.Nsa[(s, a)]
    #     print("Nsa is : ", nsa)
+        end_bf_rc = time.time()
+        print("bf-rc ")
+        print(end_bf_rc - start_bf_rc)
+        start_rc = time.time()
         if a == 81:
             if not pre_pass:
                 v = self.search(next_s,turns, noise=False, sim=sim, pre_pass=True, level=level+1, levelBased=levelBased, maxLevel=maxLevel, maxLeaves=maxLeaves)
@@ -338,6 +348,7 @@ class MCTS():
                 v = self.search(next_s,turns, noise=False, sim=sim, pre_pass=True, pre_pre_pass=True, level=level+1, levelBased=levelBased, maxLevel=maxLevel, maxLeaves=maxLeaves)
         else:
             v = self.search(next_s, turns, noise=False, sim=sim, level=level+1, levelBased=levelBased, maxLevel=maxLevel, maxLeaves=maxLeaves) #keta Paper: dirichlet noise only add to root
+        start_rc = time.time()
         if (s, a) in self.Qsa:
             self.Qsa[(s, a)] = (self.Nsa[(s, a)] * self.Qsa[(s, a)] + v) / (self.Nsa[(s, a)] + 1)
             self.Nsa[(s, a)] += 1
@@ -351,5 +362,8 @@ class MCTS():
             self.Nsa[(s, a)] = 1
 
         self.Ns[s] += 1
+        end_rc = time.time()
+        print("-rc ")
+        print(end_rc - start_rc)
         return -v
 
