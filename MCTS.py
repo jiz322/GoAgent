@@ -1,6 +1,5 @@
 import logging
 import math
-import time
 import numpy as np
 from go.exceptions import (SelfDestructException, KoException, InvalidInputException)
 EPS = 1e-8
@@ -79,22 +78,14 @@ class MCTS():
                     break
         if arena == 1: # in arena, IT HAS TO BE FAIR!! NO CHEATING!!
             i = 0
-            start_loop = time.time()
             while(True):             
                 i += 1
                 if i == 10000: #cap at 8000 total
                     break
-                start = time.time()
                 self.search(canonicalBoard, canonicalBoard.turns, noise=False, sim=self.args.numMCTSSims, levelBased=self.args.levelBased, maxLevel=self.args.maxLevel, maxLeaves=self.args.maxLeaves)
-                end = time.time()
-                print("Totaltime of performing one search")
-                print(end - start)
                 if self.capFlag:
                     self.capFlag = False
                     break
-            end_loop = time.time()
-            print("Looptime")
-            print(end_loop - start_loop)
         if training == 0 and arena == 0:
             #For testing out of learning
             #Cheat or not, depends on the settings in pit.py
@@ -219,7 +210,6 @@ class MCTS():
             self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
             
             ######################## START SELECTLOOP ####################
-            start = time.time()
             if maxLevel < 100:
                 topN = []
                 for i in self.Ps[s]:
@@ -235,9 +225,6 @@ class MCTS():
                         self.Ps[s][i] = 0
                         
                 sum_Ps_s = np.sum(self.Ps[s])
-            end = time.time()
-            print("selectloop")
-            print(end - start)
             ######################## END SELECTLOOP ####################
 
             #print(v)
@@ -263,7 +250,6 @@ class MCTS():
         cur_best = -float('inf')
         best_act = -1
         ######################## START ACTIONLOOP ####################
-        start = time.time()
         # pick the action with the highest upper confidence bound
         for a in range(self.game.getActionSize()):
             #print('for a in range(self.game.getActionSize()):')
@@ -281,13 +267,9 @@ class MCTS():
                     cur_best = u
                     best_act = a
         a = best_act
-        end = time.time()
-        print("actionloop")
-        print(end - start)
         ######################## END ACTIONLOOP ####################
 
         ######################## START TRYACTION ####################
-        start = time.time()
         try:
             next_s, next_player = self.game.getNextState(canonicalBoard, 1, a)
         except Exception as e:
@@ -318,10 +300,6 @@ class MCTS():
                 print(e)
                 print("other error exist")
         next_s = self.game.getCanonicalForm(next_s, next_player)
-
-        end = time.time()
-        print("tryActionLoop")
-        print(end - start)
         ######################## END TRYACTIONLOOP ####################
         v = 0
 #        print("------------")
