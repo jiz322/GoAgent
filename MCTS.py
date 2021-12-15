@@ -22,10 +22,18 @@ class MCTS():
         self.Ps = {}  # stores initial policy (returned by neural net)
 
         self.Es = {}  # stores game.getGameEnded ended for board s
-        self.Vs = {}  # stores game.getValidMoves for board s
+        #self.Vs = {}  # stores game.getValidMoves for board s
 
         self.capFlag = False #True if reaches simulation cap
 
+    def cleanCache (self, turns):
+        keys_to_delete = []
+        for (s, a) in self.Qsa:
+            if s[-1] < turns:
+                keys_to_delete.append((s,a))
+        for i in keys_to_delete:
+            print(self.Qsa.pop(i))         
+            print(self.Nsa.pop(i))
 
     # Noise only add to training mode (not for Arena Nor pit)
     def getActionProb(self, canonicalBoard, levelBased=False, temp=1, training=0, arena=0, instinctPlay=False, ew=0):
@@ -36,7 +44,9 @@ class MCTS():
         Returns:
             probs: a policy vector where the probability of the ith action is
                    proportional to Nsa[(s,a)]**(1./temp)
-        """     
+        """
+        if canonicalBoard.turns > 1 and canonicalBoard.turns%10 == 0:
+            self.cleanCache(canonicalBoard.turns)
         ##Reset the Tree here for a fair arena game (do not enable it when training)
         if instinctPlay:
             self.__init__(self.game, self.nnet, self.args) #to make the Arena work as expected instead of a large single tree.
@@ -78,7 +88,7 @@ class MCTS():
                     break
         if arena == 1: # in arena, IT HAS TO BE FAIR!! NO CHEATING!!
             i = 0
-            while(True):             
+            while(True):   
                 i += 1
                 if i == 10000: #cap at 8000 total
                     break
@@ -100,7 +110,7 @@ class MCTS():
                 if self.capFlag:
                     self.capFlag = False
                     break
-        s = self.game.stringRepresentation(canonicalBoard)+ str(canonicalBoard.turns).encode()
+        s = self.game.stringRepresentation(canonicalBoard)+ canonicalBoard.turns.to_bytes(2, 'big')
         counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0 for a in range(self.game.getActionSize())]
         # For go, the highest NSA may not a legal move due to the rule of 'ko' 
         # Then, we mask it 0.
@@ -160,8 +170,7 @@ class MCTS():
         Returns:
             v: the negative of the value of the current canonicalBoard
         """
-
-        s = self.game.stringRepresentation(canonicalBoard)+ str(turns+level).encode()
+        s = self.game.stringRepresentation(canonicalBoard)+ (turns+level).to_bytes(2, 'big')
         #print('mcts')
         #print(canonicalBoard)
         #print('l78')
@@ -198,8 +207,8 @@ class MCTS():
 
             #print('nn')
             #print(canonicalBoard)
-            valids = self.game.getValidMoves(canonicalBoard, 1)
-            valid_length = len(self.Ps[s]) - np.count_nonzero(self.Ps[s]==0)
+            #valids = self.game.getValidMoves(canonicalBoard, 1)
+            #valid_length = len(self.Ps[s]) - np.count_nonzero(self.Ps[s]==0)
             if noise: # add dirichlet noise to the root policy
                 #print("here")
                 #print(self.Ps[s])
@@ -207,19 +216,23 @@ class MCTS():
                 self.Ps[s] = 0.75*self.Ps[s] + 0.25*np.random.dirichlet([0.03*canonicalBoard.board_size**2/valid_length]*len(self.Ps[s]))
                 #print(newPs)
                 #print(0.25*np.random.dirichlet([0.03*canonicalBoard.board_size**2/valid_length]*len(self.Ps[s])))
-            self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
+            #self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
             
             ######################## START SELECTLOOP ####################
+
+            #select topN moves
             if maxLevel < 100:
                 topN = []
                 for i in self.Ps[s]:
-                    topN.sort()
-                    if len(topN) == maxLeaves:
-                        if i > topN[0]:
-                            topN[0] = i
-                    else:
-                        topN.append(i)
-            
+                    topN.append(i)
+                    # topN.sort()
+                    # if len(topN) == maxLeaves:
+                    #     if i > topN[0]:
+                    #         topN[0] = i
+                    # else:
+                    #     topN.append(i)
+                topN.sort()
+                topN = topN[-maxLeaves:]
                 for i in range(0, len(self.Ps[s])):
                     if self.Ps[s][i] not in topN:
                         self.Ps[s][i] = 0
@@ -238,22 +251,21 @@ class MCTS():
                 # NB! All valid moves may be masked if either your NNet architecture is insufficient or you've get overfitting or something else.
                 # If you have got dozens or hundreds of these messages you should pay attention to your NNet and/or training process.   
                 log.error("All valid moves were masked, doing a workaround.")
-                self.Ps[s] = self.Ps[s] + valids
+               #self.Ps[s] = self.Ps[s] + valids
                 self.Ps[s] /= np.sum(self.Ps[s])
 
-            self.Vs[s] = valids
+            #self.Vs[s] = valids
             self.Ns[s] = 0
             #print(canonicalBoard)
             return -v
 
-        valids = self.Vs[s]
+        #valids = self.Vs[s]
         cur_best = -float('inf')
         best_act = -1
-        ######################## START ACTIONLOOP ####################
         # pick the action with the highest upper confidence bound
         for a in range(self.game.getActionSize()):
             #print('for a in range(self.game.getActionSize()):')
-            if valids[a]:
+            if self.Ps[s][a] != 0:
                 #print((a,valids[a]))
                 if (s, a) in self.Qsa:
                     u = self.Qsa[(s, a)] + self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s] - self.Nsa[(s, a)] + 1) / (
@@ -300,6 +312,7 @@ class MCTS():
                 print(e)
                 print("other error exist")
         next_s = self.game.getCanonicalForm(next_s, next_player)
+
         ######################## END TRYACTIONLOOP ####################
         v = 0
 #        print("------------")
@@ -309,6 +322,7 @@ class MCTS():
         if (s, a) in self.Nsa.keys():
             nsa = self.Nsa[(s, a)]
    #     print("Nsa is : ", nsa)
+
         if a == 81:
             if not pre_pass:
                 v = self.search(next_s,turns, noise=False, sim=sim, pre_pass=True, level=level+1, levelBased=levelBased, maxLevel=maxLevel, maxLeaves=maxLeaves)
