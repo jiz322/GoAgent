@@ -28,12 +28,18 @@ class MCTS():
 
     def cleanCache (self, turns):
         keys_to_delete = []
+        keys_to_delete2 = []
         for (s, a) in self.Qsa:
             if s[-1] < turns:
                 keys_to_delete.append((s,a))
         for i in keys_to_delete:
-            print(self.Qsa.pop(i))         
-            print(self.Nsa.pop(i))
+            self.Qsa.pop(i)         
+            self.Nsa.pop(i)
+            keys_to_delete2.append(i[0])
+        keys_to_delete2 = list(set(keys_to_delete2))
+        for i in keys_to_delete2:
+            self.Ps.pop(i)
+            self.Ns.pop(i)
 
     # Noise only add to training mode (not for Arena Nor pit)
     def getActionProb(self, canonicalBoard, levelBased=False, temp=1, training=0, arena=0, instinctPlay=False, ew=0):
@@ -45,7 +51,7 @@ class MCTS():
             probs: a policy vector where the probability of the ith action is
                    proportional to Nsa[(s,a)]**(1./temp)
         """
-        if canonicalBoard.turns > 1 and canonicalBoard.turns%10 == 0:
+        if canonicalBoard.turns > 1 and canonicalBoard.turns%5 == 0:
             self.cleanCache(canonicalBoard.turns)
         ##Reset the Tree here for a fair arena game (do not enable it when training)
         if instinctPlay:

@@ -23,7 +23,7 @@ args = dotdict({
     'resignThreshold': -0.9, # No Use. Resign Only in self-play Training
     'maxLevel': 9,
     'levelBased': True,
-    'maxLeaves': 9,
+    'maxLeaves':5,
 })
 args2 = dotdict({
     'size': 9,                  #board size
@@ -34,9 +34,9 @@ args2 = dotdict({
     'instinctArena': False,      # if set true reset Arena's MTCL tree each time
     'balancedGame': True,      # if balanced, black should win over 6 scores
     'resignThreshold': -0.9, # No Use. Resign Only in self-play Training
-    'maxLevel': 6,
+    'maxLevel': 15,
     'levelBased': True,
-    'maxLeaves': 5,
+    'maxLeaves': 9,
 })
 human_vs_cpu = True
 
@@ -52,7 +52,7 @@ hp = HumanGoPlayer(g).play
 
 # nnet players
 n1 = NNet(g)
-n1.load_checkpoint('./temp/','9*9oct08th.tar')
+n1.load_checkpoint('./temp/','9*9aug16th.tar')
 mcts1 = MCTS(g, n1, args)
 n1p = lambda x: np.argmax(mcts1.getActionProb(x, arena=1, temp=0, ew=-1,instinctPlay=args.instinctArena, levelBased=args.levelBased)[0])
 
@@ -65,10 +65,10 @@ n2p = lambda x: np.argmax(mcts2.getActionProb(x, arena=1, temp=0,instinctPlay=ar
 player2 = hp
 
 
-arena = Arena.Arena(n1p, hp, g, display=Game.display)
+arena = Arena.Arena(n1p, n2p, g, display=Game.display)
 x, y, z, xb = arena.playGames(2, verbose=True)
-print("94 win: ", x)
-print("710 win: ", y)
+print("95 win: ", x)
+print("159 win: ", y)
 print("Draw: ", z)
 print("Bot Win with Black: ", xb )
 

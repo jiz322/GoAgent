@@ -32,7 +32,7 @@ args = dotdict({
     'resignThreshold': -0.9999,   #resign when best Q value less than threshold Q[-1, 1]
     'levelBased': True,
     'maxLevel' : 14,
-    'maxLeaves': 4,
+    'maxLeaves': 6,
 
 })
 
